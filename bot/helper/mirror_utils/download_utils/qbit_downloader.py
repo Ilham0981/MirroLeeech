@@ -2,16 +2,16 @@ from hashlib import sha1
 from bencoding import bencode, bdecode
 from os import remove as osremove, path as ospath, listdir
 from time import sleep, time
-from re import search
+from re import search as re_search
 from threading import Thread
 from telegram import InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
 
-from bot import download_dict, download_dict_lock, BASE_URL, dispatcher, get_client, TORRENT_DIRECT_LIMIT, ZIP_UNZIP_LIMIT, STOP_DUPLICATE, WEB_PINCODE, QB_SEED, QB_TIMEOUT, LOGGER, STORAGE_THRESHOLD
+from bot import download_dict, download_dict_lock, BASE_URL, dispatcher, get_client, TORRENT_DIRECT_LIMIT, ZIP_UNZIP_LIMIT, STOP_DUPLICATE, WEB_PINCODE, QB_SEED, TORRENT_TIMEOUT, LOGGER, STORAGE_THRESHOLD
 from bot.helper.mirror_utils.status_utils.qbit_download_status import QbDownloadStatus
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 from bot.helper.telegram_helper.message_utils import sendMessage, sendMarkup, deleteMessage, sendStatusMessage, update_all_messages
-from bot.helper.ext_utils.bot_utils import MirrorStatus, getDownloadByGid, get_readable_file_size, get_readable_time
+from bot.helper.ext_utils.bot_utils import getDownloadByGid, get_readable_file_size, get_readable_time
 from bot.helper.ext_utils.fs_utils import clean_unwanted, get_base_name, check_storage_threshold
 from bot.helper.telegram_helper import button_build
 
@@ -48,7 +48,7 @@ def add_qb_torrent(link, path, listener, select):
                         client.torrents_delete(torrent_hashes=ext_hash, delete_files=True)
                         client.auth_log_out()
                         return
-                    tor_info = client.torrents_info(torrent_hashes=ext_hash, delete_files=True)
+                    tor_info = client.torrents_info(torrent_hashes=ext_hash)
                     if len(tor_info) > 0:
                         break
         else:
@@ -121,12 +121,12 @@ def _qb_listener(listener, client, ext_hash, select, path):
             tor_info = tor_info[0]
             if tor_info.state == "metaDL":
                 stalled_time = time()
-                if QB_TIMEOUT is not None and time() - tor_info.added_on >= QB_TIMEOUT: #timeout while downloading metadata
+                if TORRENT_TIMEOUT is not None and time() - tor_info.added_on >= TORRENT_TIMEOUT: #timeout while downloading metadata
                     _onDownloadError("Dead Torrent!", client, ext_hash, listener)
                     break
             elif tor_info.state == "downloading":
                 stalled_time = time()
-                if STOP_DUPLICATE and not dupChecked and ospath.isdir(f'{path}') and not listener.isLeech:
+                if not dupChecked and STOP_DUPLICATE and ospath.isdir(f'{path}') and not listener.isLeech:
                     LOGGER.info('Checking File/Folder if already in Drive')
                     qbname = str(listdir(f'{path}')[-1])
                     if qbname.endswith('.!qB'):
@@ -147,7 +147,6 @@ def _qb_listener(listener, client, ext_hash, select, path):
                             break
                     dupChecked = True
                 if not sizeChecked:
-                    sleep(1)
                     size = tor_info.size
                     arch = any([listener.isZip, listener.extract])
                     if STORAGE_THRESHOLD is not None:
@@ -179,7 +178,7 @@ def _qb_listener(listener, client, ext_hash, select, path):
                     LOGGER.info(msg)
                     client.torrents_recheck(torrent_hashes=ext_hash)
                     rechecked = True
-                elif QB_TIMEOUT is not None and time() - stalled_time >= QB_TIMEOUT: # timeout after downloading metadata
+                elif TORRENT_TIMEOUT is not None and time() - stalled_time >= TORRENT_TIMEOUT: # timeout after downloading metadata
                     _onDownloadError("Dead Torrent!", client, ext_hash, listener)
                     break
             elif tor_info.state == "missingFiles":
@@ -187,8 +186,8 @@ def _qb_listener(listener, client, ext_hash, select, path):
             elif tor_info.state == "error":
                 _onDownloadError("No enough space for this torrent on device", client, ext_hash, listener)
                 break
-            elif (tor_info.state.lower().endswith("up") or tor_info.state == "uploading") and not uploaded:
-                LOGGER.info(f"onQbDownloadComplete: {ext_hash}")
+            elif (tor_info.state.lower().endswith("up") or tor_info.state == "uploading") and \
+                 not uploaded and len(listdir(path)) != 0:
                 uploaded = True
                 if not QB_SEED:
                     client.torrents_pause(torrent_hashes=ext_hash)
@@ -227,7 +226,7 @@ def get_confirm(update, context):
         query.answer(text="This task has been cancelled!", show_alert=True)
         query.message.delete()
     elif user_id != qbdl.listener().message.from_user.id:
-        query.answer(text="Don't waste your time!", show_alert=True)
+        query.answer(text="This task is not for you!", show_alert=True)
     elif data[1] == "pin":
         query.answer(text=data[3], show_alert=True)
     elif data[1] == "done":
@@ -238,8 +237,7 @@ def get_confirm(update, context):
 
 def _get_hash_magnet(mgt):
     if mgt.startswith('magnet:'):
-        hash_ = search(r'(?<=xt=urn:btih:)[a-zA-Z0-9]+', mgt).group(0)
-        return hash_
+        return re_search(r'(?<=xt=urn:btih:)[a-zA-Z0-9]+', mgt).group(0)
 
 def _get_hash_file(path):
     with open(path, "rb") as f:
