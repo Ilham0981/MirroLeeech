@@ -7,7 +7,7 @@ from bot.helper.ext_utils.bot_utils import get_readable_file_size, setInterval
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 from bot.helper.ext_utils.fs_utils import get_base_name, check_storage_threshold
 from ..status_utils.mega_download_status import MegaDownloadStatus
-from megasdkrestclient import MegaSdkRestClient, constants
+#from megasdkrestclient import MegaSdkRestClient, constants
 
 
 class MegaDownloader:
