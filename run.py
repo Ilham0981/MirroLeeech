@@ -1,10 +1,5 @@
 import subprocess
 
-# Set working directory
-subprocess.run(['mkdir', '-p', '/usr/src/app'])
-subprocess.run(['chmod', '777', '/usr/src/app'])
-subprocess.run(['cd', '/usr/src/app'])
-
 # Update package lists and install dependencies
 subprocess.run(['apt-get', 'update'])
 subprocess.run(['DEBIAN_FRONTEND=noninteractive', 'apt-get', 'install', '-y', 
@@ -29,9 +24,5 @@ subprocess.run(['export', 'LANGUAGE=en_US:en'])
 # Install Python dependencies
 subprocess.run(['pip3', 'install', '--no-cache-dir', '-r', '/usr/src/app/requirements.txt'])
 
-# Copy files
-subprocess.run(['cp', '/usr/src/app/requirements.txt', '/usr/src/app/'])
-subprocess.run(['cp', '-r', '.', '/usr/src/app/'])
-
 # Run the Python script
-subprocess.run(['python3', '/usr/src/app/run.py'])
+subprocess.run(['python3', 'run.py'])
