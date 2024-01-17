@@ -1,3 +1,4 @@
+apscheduler
 anytree
 appdirs
 aria2p
