@@ -17,7 +17,6 @@ RUN apt-get -y update && DEBIAN_FRONTEND="noninteractive" \
     -o /usr/local/bin/megasdkrest && chmod +x /usr/local/bin/megasdkrest
 
 ENV LANG="en_US.UTF-8" LANGUAGE="en_US:en"
-EXPOSE 80
 
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r https://github.com/anasty17/mirror-leech-telegram-bot/raw/master/requirements.txt
